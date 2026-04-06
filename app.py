@@ -318,12 +318,13 @@ st.markdown("<br>", unsafe_allow_html=True)
 # ══════════════════════════════════════════════════════════════════════════════
 # TABS
 # ══════════════════════════════════════════════════════════════════════════════
-tab1, tab2, tab3, tab4, tab5 = st.tabs([
+tab1, tab2, tab3, tab4, tab5, tab6 = st.tabs([
     "📊  Process Overview",
     "🔍  Bottleneck Analysis",
     "🤖  AI Opportunity Map",
     "💰  ROI Calculator",
     "🗺️  Implementation Roadmap",
+    "🗂️  Data Preview",
 ])
 
 
@@ -634,5 +635,126 @@ with tab5:
             <span style='color:#00D4AA;'>Celonis Process Mining Certified</span> ·
             SAP S/4HANA · McKinsey Forward · May 2026
         </div>
+    </div>
+    """, unsafe_allow_html=True)
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# TAB 6 — Data Preview
+# ─────────────────────────────────────────────────────────────────────────────
+with tab6:
+    st.markdown('<p class="pp-section-header">Demo Dataset — Event Log</p>', unsafe_allow_html=True)
+
+    st.markdown(f"""
+    <div class="pp-card-accent" style="margin-bottom:20px;">
+        <div style="font-size:12px; color:#8B949E; line-height:1.8;">
+            This synthetic event log simulates a real SAP
+            <b style="color:#E6EDF3;">{process_type}</b> process.
+            Each row is one activity execution (event) within a case (transaction).
+            The data structure mirrors what Celonis ingests from SAP event tables
+            like <b style="color:#00D4AA;">CDHDR / CDPOS</b> (O2C) or
+            <b style="color:#00D4AA;">EKKO / EKPO / RBKP</b> (P2P).
+        </div>
+    </div>
+    """, unsafe_allow_html=True)
+
+    # ── Controls ──────────────────────────────────────────────────────────────
+    ctrl1, ctrl2, ctrl3 = st.columns([1, 1, 2])
+    with ctrl1:
+        preview_rows = st.selectbox("Rows to preview", [25, 50, 100, 200], index=0)
+    with ctrl2:
+        variant_filter = st.selectbox(
+            "Filter by variant",
+            ["All"] + sorted(df["variant"].unique().tolist()),
+        )
+    with ctrl3:
+        search_activity = st.text_input("Search activity", placeholder="e.g. Credit Check")
+
+    # ── Filter ────────────────────────────────────────────────────────────────
+    preview_df = df.copy()
+    if variant_filter != "All":
+        preview_df = preview_df[preview_df["variant"] == variant_filter]
+    if search_activity:
+        preview_df = preview_df[
+            preview_df["activity"].str.contains(search_activity, case=False)
+        ]
+
+    display_cols = ["case_id", "activity", "start_time", "end_time",
+                    "duration_hrs", "resource", "variant", "amount_usd",
+                    "is_bottleneck", "ai_opportunity"]
+
+    st.markdown(
+        f'<p style="font-size:11px; color:#8B949E; margin-bottom:8px;">' +
+        f'Showing {min(preview_rows, len(preview_df)):,} of {len(preview_df):,} filtered rows ' +
+        f'({len(df):,} total events)</p>',
+        unsafe_allow_html=True,
+    )
+
+    st.dataframe(
+        preview_df[display_cols].head(preview_rows).reset_index(drop=True),
+        use_container_width=True,
+        height=380,
+    )
+
+    # ── Column glossary ───────────────────────────────────────────────────────
+    st.markdown("<br>", unsafe_allow_html=True)
+    st.markdown('<p class="pp-section-header">Column Glossary</p>', unsafe_allow_html=True)
+
+    glossary = [
+        ("case_id",        "Unique transaction ID (e.g. O2C-0042). Equivalent to SAP document number."),
+        ("activity",       "Process step executed. Maps to SAP change document action or workflow task."),
+        ("start_time",     "Timestamp when the activity began."),
+        ("end_time",       "Timestamp when the activity completed."),
+        ("duration_hrs",   "Hours elapsed for this activity. Bottleneck steps show high variance."),
+        ("resource",       "Person or system that executed the step (Alice, Bob, SAP-Auto, etc.)."),
+        ("variant",        "Which process path this case followed. Happy Path = no deviations."),
+        ("amount_usd",     "Transaction value in USD. Used to calculate value-at-risk for deviating cases."),
+        ("is_bottleneck",  "True if this activity is flagged as a value-leaking bottleneck step."),
+        ("ai_opportunity", "AI readiness score (0–100) for this activity. Higher = stronger AI use case."),
+    ]
+
+    g1, g2 = st.columns(2)
+    for i, (col_name, desc) in enumerate(glossary):
+        target = g1 if i % 2 == 0 else g2
+        with target:
+            st.markdown(f"""
+            <div style="background:#161B22; border:1px solid #30363D; border-radius:8px;
+                        padding:10px 14px; margin-bottom:8px;">
+                <div style="font-family: IBM Plex Mono, monospace; font-size:11px;
+                            color:#00D4AA; margin-bottom:3px;">{col_name}</div>
+                <div style="font-size:11px; color:#8B949E;">{desc}</div>
+            </div>
+            """, unsafe_allow_html=True)
+
+    # ── Download ──────────────────────────────────────────────────────────────
+    st.markdown("<br>", unsafe_allow_html=True)
+    st.markdown('<p class="pp-section-header">Download</p>', unsafe_allow_html=True)
+
+    dl1, dl2, _ = st.columns([1, 1, 2])
+    with dl1:
+        csv_full = df[display_cols].to_csv(index=False).encode()
+        st.download_button(
+            "⬇️  Full Event Log (CSV)",
+            data=csv_full,
+            file_name=f"processpulse_{process_key}_event_log.csv",
+            mime="text/csv",
+            use_container_width=True,
+        )
+    with dl2:
+        csv_filtered = preview_df[display_cols].to_csv(index=False).encode()
+        st.download_button(
+            "⬇️  Filtered View (CSV)",
+            data=csv_filtered,
+            file_name=f"processpulse_{process_key}_filtered.csv",
+            mime="text/csv",
+            use_container_width=True,
+        )
+
+    st.markdown("""
+    <div style="font-size:10px; color:#8B949E; margin-top:8px; line-height:1.6;">
+        💡 Download the full event log and upload it to
+        <b style="color:#E6EDF3;">Celonis Academic</b> or
+        <b style="color:#E6EDF3;">pm4py</b> for real process mining analysis.
+        The XES-compatible structure maps directly to Celonis's data model.
     </div>
     """, unsafe_allow_html=True)
