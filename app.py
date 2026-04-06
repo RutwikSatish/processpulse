@@ -467,7 +467,9 @@ with tab3:
 with tab4:
     st.markdown('<p class="pp-section-header">AI ROI Calculator</p>', unsafe_allow_html=True)
 
-    # Adjustable assumptions
+    # Adjustable assumptions — always compute; expander just exposes the controls
+    active_roi = roi   # default
+
     with st.expander("⚙️  Adjust Assumptions", expanded=False):
         col1, col2, col3 = st.columns(3)
         with col1:
@@ -483,14 +485,12 @@ with tab4:
             "implementation_cost_usd": round(len(bottlenecks) * impl_cost),
         }
         custom_roi["net_benefit_year1_usd"] = custom_roi["annual_savings_usd"] - custom_roi["implementation_cost_usd"]
-        custom_roi["roi_pct"] = round(custom_roi["net_benefit_year1_usd"] / custom_roi["implementation_cost_usd"] * 100, 1)
-        custom_roi["payback_months"] = round(custom_roi["implementation_cost_usd"] / (custom_roi["annual_savings_usd"] / 12), 1)
-        custom_roi["total_bottleneck_hrs"] = roi["total_bottleneck_hrs"]
-        custom_roi["total_cost_impact_usd"] = roi["total_cost_impact_usd"]
-        custom_roi["total_ai_savings_usd"] = roi["total_ai_savings_usd"]
+        custom_roi["roi_pct"]          = round(custom_roi["net_benefit_year1_usd"] / max(custom_roi["implementation_cost_usd"], 1) * 100, 1)
+        custom_roi["payback_months"]   = round(custom_roi["implementation_cost_usd"] / max(custom_roi["annual_savings_usd"] / 12, 1), 1)
+        custom_roi["total_bottleneck_hrs"]   = roi["total_bottleneck_hrs"]
+        custom_roi["total_cost_impact_usd"]  = roi["total_cost_impact_usd"]
+        custom_roi["total_ai_savings_usd"]   = roi["total_ai_savings_usd"]
         active_roi = custom_roi
-    else:
-        active_roi = roi
 
     # ROI metrics
     r1, r2, r3, r4 = st.columns(4)
