@@ -67,33 +67,4 @@ Built by **Rutwik Satish**
 MS Engineering Management · Northeastern University (May 2026)
 Celonis Process Mining Certified · SAP S/4HANA · McKinsey Forward
 
-**Target roles:** AI Business Analyst · Process Intelligence Consultant · AI Operations Consultant
 
-**Companies to tag:** @Celonis, @SAP, @Deloitte, @Accenture, @IBM, @Capgemini
-
----
-
-## LinkedIn Post Template
-
-```
-I read that only 11% of companies see measurable AI benefits.
-Alex Rinke (Celonis Co-CEO) called it a "context problem" at Celosphere 2025.
-
-So I built ProcessPulse AI to show what that actually means.
-
-The app analyses an Order-to-Cash process and finds:
-→ Only X% of cases follow the intended path
-→ Top 5 bottlenecks wasting [N],000+ hours
-→ $[X]M in AI-recoverable value hiding in plain sight
-
-The insight: AI deployed without process intelligence optimises the WRONG steps.
-
-Built with: Celonis methodology · SAP S/4HANA domain knowledge ·
-Python/Streamlit · Process Mining
-
-🔗 [your streamlit link]
-GitHub: [your repo]
-
-@Celonis @SAP
-#ProcessMining #AIStrategy #BusinessAnalyst #ProcessIntelligence #DigitalTransformation
-```
