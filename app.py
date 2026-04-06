@@ -14,7 +14,7 @@ Celonis Process Mining Certified | SAP S/4HANA | McKinsey Forward
 import streamlit as st
 import pandas as pd
 import sys, os
-import anthropic
+import groq
 
 sys.path.insert(0, os.path.dirname(__file__))
 from utils.data_generator import (
