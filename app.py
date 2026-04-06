@@ -449,8 +449,8 @@ with tab2:
                 padding:16px 20px; margin-bottom:16px;'>
         <div style='font-size:11px; color:#8B949E; line-height:1.7;'>
             Click below to generate a <b style='color:#E6EDF3;'>consulting-quality AI brief</b>
-            based on the process mining findings above.
-            Powered by <b style='color:#7C3AED;'>Claude (Anthropic)</b> — this is the real AI in the app.
+            Based on the process mining findings above.
+            Powered by <b style='color:#7C3AED;'>Groq</b> — this is the real AI in the app.
         </div>
     </div>
     """, unsafe_allow_html=True)
