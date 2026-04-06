@@ -14,6 +14,7 @@ Celonis Process Mining Certified | SAP S/4HANA | McKinsey Forward
 import streamlit as st
 import pandas as pd
 import sys, os
+import anthropic
 
 sys.path.insert(0, os.path.dirname(__file__))
 from utils.data_generator import (
@@ -25,6 +26,12 @@ from utils.charts import (
     fig_variant_donut, fig_bottleneck_bar, fig_ai_opportunity_scatter,
     fig_roi_waterfall, fig_cycle_time_distribution, fig_process_flow
 )
+
+try:
+    from groq import Groq
+    GROQ_AVAILABLE = True
+except ImportError:
+    GROQ_AVAILABLE = False
 
 # ── Page config ──────────────────────────────────────────────────────────────
 st.set_page_config(
@@ -229,6 +236,18 @@ with st.sidebar:
     """, unsafe_allow_html=True)
 
     st.markdown("---")
+    st.markdown('<p class="pp-section-header">AI Consultant (Groq)</p>', unsafe_allow_html=True)
+    groq_key = st.secrets.get("GROQ_API_KEY", "")
+    if groq_key:
+        st.markdown(
+            '<div style="font-size:10px; color:#00D4AA;">✅ AI Consultant ready</div>',
+            unsafe_allow_html=True)
+    else:
+        st.markdown(
+            '<div style="font-size:10px; color:#F59E0B;">⚠️ Add GROQ_API_KEY to Streamlit secrets</div>',
+            unsafe_allow_html=True)
+
+    st.markdown("---")
     st.markdown("""
     <div style='font-size:10px; color:#8B949E; text-align:center;'>
         Built by <b style='color:#E6EDF3;'>Rutwik Satish</b><br>
@@ -416,6 +435,261 @@ with tab2:
                 </div>
             </div>
             """, unsafe_allow_html=True)
+
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# AI CONSULTANT — injected at bottom of Tab 2
+# ─────────────────────────────────────────────────────────────────────────────
+    st.markdown("<br>", unsafe_allow_html=True)
+    st.markdown('<p class="pp-section-header">🧠 AI Consulting Brief</p>', unsafe_allow_html=True)
+
+    st.markdown("""
+    <div style='background:#161B22; border:1px solid #7C3AED44; border-radius:12px;
+                padding:16px 20px; margin-bottom:16px;'>
+        <div style='font-size:11px; color:#8B949E; line-height:1.7;'>
+            Click below to generate a <b style='color:#E6EDF3;'>consulting-quality AI brief</b>
+            based on the process mining findings above.
+            Powered by <b style='color:#7C3AED;'>Claude (Anthropic)</b> — this is the real AI in the app.
+        </div>
+    </div>
+    """, unsafe_allow_html=True)
+
+    # Build structured prompt from live data
+    bn_summary = "\n".join([
+        f"  {i+1}. {row['activity']} — {int(row['occurrences'])} cases, "
+        f"avg {row['avg_duration_hrs']:.1f}h, AI score {int(row['ai_score'])}/100, "
+        f"cost impact ${row['cost_impact_usd']:,.0f}"
+        for i, (_, row) in enumerate(bottlenecks.iterrows())
+    ])
+
+    prompt = f"""You are a senior AI transformation consultant at a top-tier firm (McKinsey/Deloitte level).
+A client has just run process mining on their {process_type} process. Here are the findings:
+
+PROCESS OVERVIEW:
+- Total cases analysed: {stats['total_cases']:,}
+- Happy path rate: {stats['happy_path_pct']}% (only {stats['happy_path_pct']}% follow the intended flow)
+- Average cycle time: {stats['avg_cycle_time_hrs']}h (happy path: {stats['happy_cycle_hrs']}h)
+- Bottleneck time as % of total: {stats['bottleneck_pct']}%
+- Value at risk: ${stats['at_risk_value_usd']/1e6:.1f}M ({round(stats['at_risk_value_usd']/stats['total_value_usd']*100,1)}% of portfolio)
+
+TOP 5 BOTTLENECKS IDENTIFIED:
+{bn_summary}
+
+ROI SUMMARY:
+- Annual AI savings potential: ${roi['annual_savings_usd']:,}
+- Implementation cost: ${roi['implementation_cost_usd']:,}
+- Projected payback: {roi['payback_months']} months
+- Year-1 net benefit: ${roi['net_benefit_year1_usd']:,}
+
+Write a concise, executive-ready consulting brief (250-300 words) structured as:
+1. SITUATION — what the process mining revealed (2-3 sentences, specific numbers)
+2. ROOT CAUSE — why these bottlenecks exist (2-3 sentences, business analysis perspective)
+3. RECOMMENDATION — the 3 highest-priority AI interventions with expected outcome per intervention
+4. RISK & NEXT STEPS — one key risk and the immediate next action
+
+Use professional consulting language. Be specific — reference the actual activity names and numbers.
+Do not use generic AI buzzwords. Write as if presenting to a CFO."""
+
+    if st.button("🧠  Generate AI Consulting Brief", type="primary", use_container_width=False):
+        # Get API key from Streamlit secrets
+        api_key = None
+        try:
+            api_key = st.secrets["ANTHROPIC_API_KEY"]
+        except Exception:
+            pass
+
+        if not api_key:
+            st.warning(
+                "⚠️ Add your Anthropic API key to Streamlit secrets to enable this feature.\n\n"
+                "**How to add it:**\n"
+                "1. Go to your app on share.streamlit.io\n"
+                "2. Click 'Manage app' → 'Secrets'\n"
+                "3. Add: `ANTHROPIC_API_KEY = \"sk-ant-...\"` \n\n"
+                "Get a free API key at [console.anthropic.com](https://console.anthropic.com)"
+            )
+        else:
+            brief_container = st.empty()
+            full_text = ""
+
+            with st.spinner("Analysing process data..."):
+                try:
+                    client = anthropic.Anthropic(api_key=api_key)
+                    with client.messages.stream(
+                        model="claude-opus-4-5",
+                        max_tokens=600,
+                        messages=[{"role": "user", "content": prompt}],
+                    ) as stream:
+                        for text_chunk in stream.text_stream:
+                            full_text += text_chunk
+                            brief_container.markdown(f"""
+                            <div style='background:#0D1117; border:1px solid #7C3AED;
+                                        border-radius:12px; padding:20px 24px;
+                                        font-size:13px; color:#E6EDF3; line-height:1.8;
+                                        font-family: IBM Plex Sans, sans-serif;
+                                        white-space: pre-wrap;'>
+                            {full_text}▌
+                            </div>
+                            """, unsafe_allow_html=True)
+
+                    # Final render without cursor
+                    brief_container.markdown(f"""
+                    <div style='background:#0D1117; border:1px solid #7C3AED;
+                                border-radius:12px; padding:20px 24px;
+                                font-size:13px; color:#E6EDF3; line-height:1.8;
+                                font-family: IBM Plex Sans, sans-serif;
+                                white-space: pre-wrap;'>
+                    {full_text}
+                    </div>
+                    """, unsafe_allow_html=True)
+
+                    # Download button for the brief
+                    st.download_button(
+                        "⬇️  Download Brief (TXT)",
+                        data=full_text.encode(),
+                        file_name=f"processpulse_consulting_brief_{process_key}.txt",
+                        mime="text/plain",
+                    )
+
+                except anthropic.AuthenticationError:
+                    st.error("Invalid API key. Check your Streamlit secrets.")
+                except Exception as e:
+                    st.error(f"API error: {e}")
+
+
+    # ── AI Consulting Brief ──────────────────────────────────────────────────
+    st.markdown("<br>", unsafe_allow_html=True)
+    st.markdown('<p class="pp-section-header">🧠 AI Consulting Brief</p>', unsafe_allow_html=True)
+
+    def build_prompt(process_key, stats, bottlenecks):
+        bn_lines = "\n".join([
+            f"  {i+1}. {row['activity']}: {row['occurrences']} cases affected, "
+            f"avg {row['avg_duration_hrs']:.1f}h per occurrence, "
+            f"${row['cost_impact_usd']:,.0f} cost impact, AI score {row['ai_score']}/100"
+            for i, (_, row) in enumerate(bottlenecks.iterrows())
+        ])
+        return f"""You are a senior AI transformation consultant specialising in SAP S/4HANA,
+Celonis process mining, and enterprise AI implementation.
+
+A client just ran ProcessPulse AI on their {process_key} process. The tool found:
+- {stats['happy_path_pct']}% happy path rate — {100-stats['happy_path_pct']:.0f}% of cases deviate
+- Average cycle time: {stats['avg_cycle_time_hrs']}h (happy path: {stats['happy_cycle_hrs']}h)
+- {stats['bottleneck_pct']}% of all process time is consumed by bottlenecks
+- ${stats['at_risk_value_usd']:,.0f} in transaction value at risk
+
+The 5 bottlenecks identified (ranked by total hours wasted):
+{bn_lines}
+
+Your job: show the client EXACTLY how AI solves each of these problems.
+
+For each of the top 3 bottlenecks write one focused paragraph that:
+- Names the specific problem happening right now (what humans are doing manually)
+- Names the precise AI technology that fixes it (e.g. LLM classification, predictive scoring,
+  agentic workflow, RPA + AI, process mining alert, etc.)
+- Describes concretely what the AI does step-by-step in that process
+- States the measurable outcome (time saved, error rate drop, cost recovered)
+
+Then write a final paragraph on the one data or change-management prerequisite
+the client must resolve before any of this AI works — be blunt and specific.
+
+Tone: direct, confident, senior consultant. No bullet points. Flowing prose.
+Do not just restate the numbers — interpret and advise."""
+
+    col_btn, col_model, _ = st.columns([1.5, 1.5, 2])
+    with col_btn:
+        generate = st.button(
+            "🧠 Show Me How AI Fixes This",
+            use_container_width=True,
+            type="primary",
+        )
+    with col_model:
+        model_choice = st.selectbox("Model", [
+            "llama-3.3-70b-versatile",
+            "llama-3.1-8b-instant",
+            "mixtral-8x7b-32768",
+        ], label_visibility="collapsed")
+
+    if not groq_key:
+        st.markdown("""
+        <div style='background:#161B22; border:1px solid #30363D; border-radius:10px;
+                    padding:16px 20px; color:#8B949E; font-size:12px;'>
+            🔑 Add <b style='color:#E6EDF3;'>GROQ_API_KEY</b> to your Streamlit secrets
+            to unlock the AI Solution Designer — powered by Llama 3.3 70B via Groq.
+            <br><span style='font-size:10px;'>Free key at console.groq.com</span>
+        </div>
+        """, unsafe_allow_html=True)
+
+    elif generate:
+        prompt = build_prompt(process_key, stats, bottlenecks)
+        try:
+            client_groq = Groq(api_key=groq_key)
+
+            # Header card
+            top3 = bottlenecks.head(3)[["activity","cost_impact_usd","ai_score"]]
+            cards_html = "".join([
+                f'''<div style="display:inline-block; background:#0D1117;
+                    border:1px solid #00D4AA33; border-radius:8px;
+                    padding:8px 14px; margin-right:8px; margin-bottom:8px;">
+                    <div style="font-size:10px; color:#8B949E;">BOTTLENECK {i+1}</div>
+                    <div style="font-size:12px; font-weight:600; color:#E6EDF3;">{row["activity"]}</div>
+                    <div style="font-size:10px; color:#00D4AA;">${row["cost_impact_usd"]:,.0f} impact · AI score {row["ai_score"]}/100</div>
+                </div>'''
+                for i, (_, row) in enumerate(top3.iterrows())
+            ])
+
+            st.markdown(f'''
+            <div style="background:#161B22; border:1px solid #00D4AA33;
+                        border-left:3px solid #00D4AA; border-radius:0 12px 12px 0;
+                        padding:20px 24px; margin-top:12px;">
+                <div style="font-size:10px; color:#00D4AA; font-family: IBM Plex Mono;
+                            letter-spacing:2px; margin-bottom:10px;">
+                    AI SOLUTION DESIGN · {model_choice.upper()} · GROQ
+                </div>
+                <div style="margin-bottom:14px;">{cards_html}</div>
+            ''', unsafe_allow_html=True)
+
+            def stream_solution():
+                stream = client_groq.chat.completions.create(
+                    model=model_choice,
+                    messages=[{"role": "user", "content": prompt}],
+                    stream=True,
+                    max_tokens=800,
+                    temperature=0.35,
+                )
+                for chunk in stream:
+                    content = chunk.choices[0].delta.content
+                    if content:
+                        yield content
+
+            st.write_stream(stream_solution())
+            st.markdown("</div>", unsafe_allow_html=True)
+
+        except Exception as e:
+            st.error(f"Groq error: {e}")
+
+    else:
+        # Preview state — show what will be generated
+        top3_names = bottlenecks.head(3)["activity"].tolist()
+        preview_html = "".join([
+            f'<span style="background:#00D4AA22; color:#00D4AA; border:1px solid #00D4AA33; '
+            f'border-radius:4px; padding:2px 8px; font-size:11px; margin-right:6px;">{a}</span>'
+            for a in top3_names
+        ])
+        st.markdown(f'''
+        <div style="background:#161B22; border:1px solid #30363D; border-radius:10px;
+                    padding:20px 24px;">
+            <div style="font-size:12px; color:#8B949E; margin-bottom:12px;">
+                Click the button above to get an AI-generated solution design for:
+            </div>
+            <div style="margin-bottom:14px;">{preview_html}</div>
+            <div style="font-size:11px; color:#8B949E; line-height:1.7;">
+                Groq will explain <b style="color:#E6EDF3;">exactly what AI technology fixes each bottleneck</b>,
+                step by step — not generic advice, but specific interventions
+                matched to your SAP process data.
+                <br><span style="color:#00D4AA;">Powered by Llama 3.3 70B · typically &lt;2 seconds</span>
+            </div>
+        </div>
+        ''', unsafe_allow_html=True)
 
 
 # ─────────────────────────────────────────────────────────────────────────────
