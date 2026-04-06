@@ -6,6 +6,7 @@ Where Your AI Should Actually Go.
 Inspired by Alex Rinke (Celonis Co-CEO) at Celosphere 2025:
 "Only 11% of companies are seeing measurable benefits from AI projects today.
  That's not an adoption problem. That's a context problem."
+ro
 
 Built by Rutwik Satish | MS Engineering Management, Northeastern University
 Celonis Process Mining Certified | SAP S/4HANA | McKinsey Forward
@@ -437,124 +438,6 @@ with tab2:
             """, unsafe_allow_html=True)
 
 
-
-# ─────────────────────────────────────────────────────────────────────────────
-# AI CONSULTANT — injected at bottom of Tab 2
-# ─────────────────────────────────────────────────────────────────────────────
-    st.markdown("<br>", unsafe_allow_html=True)
-    st.markdown('<p class="pp-section-header">🧠 AI Consulting Brief</p>', unsafe_allow_html=True)
-
-    st.markdown("""
-    <div style='background:#161B22; border:1px solid #7C3AED44; border-radius:12px;
-                padding:16px 20px; margin-bottom:16px;'>
-        <div style='font-size:11px; color:#8B949E; line-height:1.7;'>
-            Click below to generate a <b style='color:#E6EDF3;'>consulting-quality AI brief</b>
-            Based on the process mining findings above.
-            Powered by <b style='color:#7C3AED;'>Groq</b> — this is the real AI in the app.
-        </div>
-    </div>
-    """, unsafe_allow_html=True)
-
-    # Build structured prompt from live data
-    bn_summary = "\n".join([
-        f"  {i+1}. {row['activity']} — {int(row['occurrences'])} cases, "
-        f"avg {row['avg_duration_hrs']:.1f}h, AI score {int(row['ai_score'])}/100, "
-        f"cost impact ${row['cost_impact_usd']:,.0f}"
-        for i, (_, row) in enumerate(bottlenecks.iterrows())
-    ])
-
-    prompt = f"""You are a senior AI transformation consultant at a top-tier firm (McKinsey/Deloitte level).
-A client has just run process mining on their {process_type} process. Here are the findings:
-
-PROCESS OVERVIEW:
-- Total cases analysed: {stats['total_cases']:,}
-- Happy path rate: {stats['happy_path_pct']}% (only {stats['happy_path_pct']}% follow the intended flow)
-- Average cycle time: {stats['avg_cycle_time_hrs']}h (happy path: {stats['happy_cycle_hrs']}h)
-- Bottleneck time as % of total: {stats['bottleneck_pct']}%
-- Value at risk: ${stats['at_risk_value_usd']/1e6:.1f}M ({round(stats['at_risk_value_usd']/stats['total_value_usd']*100,1)}% of portfolio)
-
-TOP 5 BOTTLENECKS IDENTIFIED:
-{bn_summary}
-
-ROI SUMMARY:
-- Annual AI savings potential: ${roi['annual_savings_usd']:,}
-- Implementation cost: ${roi['implementation_cost_usd']:,}
-- Projected payback: {roi['payback_months']} months
-- Year-1 net benefit: ${roi['net_benefit_year1_usd']:,}
-
-Write a concise, executive-ready consulting brief (250-300 words) structured as:
-1. SITUATION — what the process mining revealed (2-3 sentences, specific numbers)
-2. ROOT CAUSE — why these bottlenecks exist (2-3 sentences, business analysis perspective)
-3. RECOMMENDATION — the 3 highest-priority AI interventions with expected outcome per intervention
-4. RISK & NEXT STEPS — one key risk and the immediate next action
-
-Use professional consulting language. Be specific — reference the actual activity names and numbers.
-Do not use generic AI buzzwords. Write as if presenting to a CFO."""
-
-    if st.button("🧠  Generate AI Consulting Brief", type="primary", use_container_width=False):
-        # Get API key from Streamlit secrets
-        api_key = None
-        try:
-            api_key = st.secrets["ANTHROPIC_API_KEY"]
-        except Exception:
-            pass
-
-        if not api_key:
-            st.warning(
-                "⚠️ Add your Anthropic API key to Streamlit secrets to enable this feature.\n\n"
-                "**How to add it:**\n"
-                "1. Go to your app on share.streamlit.io\n"
-                "2. Click 'Manage app' → 'Secrets'\n"
-                "3. Add: `ANTHROPIC_API_KEY = \"sk-ant-...\"` \n\n"
-                "Get a free API key at [console.anthropic.com](https://console.anthropic.com)"
-            )
-        else:
-            brief_container = st.empty()
-            full_text = ""
-
-            with st.spinner("Analysing process data..."):
-                try:
-                    client = anthropic.Anthropic(api_key=api_key)
-                    with client.messages.stream(
-                        model="claude-opus-4-5",
-                        max_tokens=600,
-                        messages=[{"role": "user", "content": prompt}],
-                    ) as stream:
-                        for text_chunk in stream.text_stream:
-                            full_text += text_chunk
-                            brief_container.markdown(f"""
-                            <div style='background:#0D1117; border:1px solid #7C3AED;
-                                        border-radius:12px; padding:20px 24px;
-                                        font-size:13px; color:#E6EDF3; line-height:1.8;
-                                        font-family: IBM Plex Sans, sans-serif;
-                                        white-space: pre-wrap;'>
-                            {full_text}▌
-                            </div>
-                            """, unsafe_allow_html=True)
-
-                    # Final render without cursor
-                    brief_container.markdown(f"""
-                    <div style='background:#0D1117; border:1px solid #7C3AED;
-                                border-radius:12px; padding:20px 24px;
-                                font-size:13px; color:#E6EDF3; line-height:1.8;
-                                font-family: IBM Plex Sans, sans-serif;
-                                white-space: pre-wrap;'>
-                    {full_text}
-                    </div>
-                    """, unsafe_allow_html=True)
-
-                    # Download button for the brief
-                    st.download_button(
-                        "⬇️  Download Brief (TXT)",
-                        data=full_text.encode(),
-                        file_name=f"processpulse_consulting_brief_{process_key}.txt",
-                        mime="text/plain",
-                    )
-
-                except anthropic.AuthenticationError:
-                    st.error("Invalid API key. Check your Streamlit secrets.")
-                except Exception as e:
-                    st.error(f"API error: {e}")
 
 
     # ── AI Consulting Brief ──────────────────────────────────────────────────
